@@ -1,9 +1,10 @@
 import { Component } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Button, Form, Modal } from 'react-bootstrap';
 import socket from '../server/socket';
 import '../css/ChatRoom.scss';
 import 'animate.css'
 import Commands from '../commands';
+import { nanoid } from 'nanoid';
 
 class ChatRoom extends Component {
 	constructor(props) {
@@ -15,7 +16,10 @@ class ChatRoom extends Component {
 			messageToSend: '',
 			messages: [],
 			usersTyping: '',
-			isTyping: false
+			isTyping: false,
+			showUser: false,
+			users: [],
+			username_array: []
 		}
 
 		socket.off(Commands.RECEIVE_MESSAGE).on(Commands.RECEIVE_MESSAGE, data => {
@@ -27,7 +31,7 @@ class ChatRoom extends Component {
 				message: data.message,
 				username: username,
 				user_id: data.user_id,
-				className: className
+				className: className,
 			});
 
 			this.setState((state) => {
@@ -43,9 +47,16 @@ class ChatRoom extends Component {
 				className: className
 			});
 
+			let idx = this.state.users.indexOf(username);
+			this.state.users.splice(idx, 1);
+
 			this.setState((state) => {
-				return {user_id: state.user_id};
+				return {
+					user_id: state.user_id,
+					username_array: data.username_array
+				};
 			});
+
 		});
 
 		socket.off(Commands.USER_TYPING).on(Commands.USER_TYPING, data => {
@@ -63,12 +74,15 @@ class ChatRoom extends Component {
 						usersTyping: '',
 						isTyping: false
 					});
-				}, 3000);
+				}, 2000);
 			}
 		});
 
 		this.sendMessage = this.sendMessage.bind(this);
 		this.onMessageChange= this.onMessageChange.bind(this);
+		this.keyPressHandler = this.keyPressHandler.bind(this);
+		this.displayUsers = this.displayUsers.bind(this);
+		this.closeModal = this.closeModal.bind(this);
 	}
 
 	componentDidMount() {
@@ -81,26 +95,27 @@ class ChatRoom extends Component {
 		socket.on(Commands.UPDATE_INFO, data => {
 			this.setState({
 				username: data.username,
-				user_id: data.user_id
+				user_id: data.user_id,
+				username_array: data.username_array
 			});
 		});
 
-		socket.off(Commands.USER_JOIN).on(Commands.USER_JOIN, data => {
+		socket.on(Commands.USER_JOIN, data => {
 			let username = (socket.id === data.user_id)? "You" : data.username;
 			let className = `animate__animated animate__faster animate__fadeInLeft joined`;
 			this.state.messages.push({
 				message: `${username} joined.`,
 				className: className
 			});
+			
+			this.state.users.push(username);
 
 			this.setState((state) => {
-				return {user_id: state.user_id};
+				return {
+					user_id: state.user_id,
+					username_array: data.username_array
+				};
 			});
-		});
-
-		this.state.messages.push({
-			message: "You joined.",
-			className: `animate__animated animate__faster animate__fadeInLeft joined`
 		});
 	}
 
@@ -134,20 +149,60 @@ class ChatRoom extends Component {
 		});
 	}
 
+	keyPressHandler(event) {
+		let key = event.key;
+
+		if(key === "Enter") {
+			this.sendMessage(event);
+		}
+	}
+
+	displayUsers() {
+		this.setState({
+			showUser: true
+		});
+	}
+
+	closeModal() {
+		this.setState({
+			showUser: false
+		});
+	}
+
 	render() {
 		return(
 			<div className="chat-room">
+
+				<Modal animation={false} show={this.state.showUser} onHide={this.closeModal}>
+					<Modal.Header>
+						<Modal.Title>Users Online</Modal.Title>
+					</Modal.Header>
+
+					<Modal.Body>
+						<ul className="users">
+							{this.state.username_array.map((user) => (
+								<li key={nanoid()}>{user}</li>
+							))}
+						</ul>
+					</Modal.Body>
+
+					<Modal.Footer>
+						<Button variant="danger" onClick={this.closeModal}>Close</Button>
+					</Modal.Footer>
+				</Modal>
+
 				<div className="header">
-					<div className="room-code">Room: <span className="grey">{this.state.room_code}</span></div>
-					<div className="username">Username: <span className="grey">{this.state.username}</span></div>
+					<div className="info">
+						<div className="room-code">Room: <span className="grey">{this.state.room_code}</span></div>
+						<div className="username">Username: <span className="grey">{this.state.username}</span></div>
+					</div>
+
+					<Button variant="primary" onClick={this.displayUsers}>Users</Button>
 				</div>
 
 				<ul className="messages">
 					{this.state.messages.map( (messageData, i) => (
-						<li
-							key={i}
-							className={messageData.className}
-						>
+						<li key={i} className={messageData.className}>
 							<span>{messageData.message}</span>
 							<div className="sender">{messageData.username}</div>
 						</li>
@@ -156,7 +211,7 @@ class ChatRoom extends Component {
 				<div className="user-typing">{this.state.usersTyping}</div>
 
 				<div className="send-message">
-					<Form.Control type="text" placeholder="Enter Message" value={this.state.messageToSend} onChange={this.onMessageChange}></Form.Control>
+					<Form.Control type="text" placeholder="Enter Message" value={this.state.messageToSend} onChange={this.onMessageChange} onKeyPress={this.keyPressHandler}></Form.Control>
 					<Button variant="success" onClick={this.sendMessage}>Send</Button>
 				</div>
 			</div>

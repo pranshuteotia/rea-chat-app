@@ -10,6 +10,9 @@ $other_user_chat_color: #0A0A0A;
 	.header {
 		flex: 1;
 		font-weight: bold;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 
 		.grey {
 			color: #888;
@@ -67,5 +70,14 @@ $other_user_chat_color: #0A0A0A;
 		input {
 			margin-right: 0.5rem;	
 		}
+	}
+}
+
+.users  {
+	list-style-type: none;
+	padding: 0;
+
+	li {
+		margin: 0.5rem;
 	}
 }

@@ -48,13 +48,29 @@ io.on('connection', socket => {
 			}
 		};
 
+		socket.join(room_code);
+
+		let username_array = [];
+		for(let user_id of Object.keys(CONNECTED_USERS)) {
+			let uname = CONNECTED_USERS[user_id].username;
+			let room = CONNECTED_USERS[user_id].room_code;
+
+			if(room === room_code){
+				username_array.push(uname);
+			}
+		}
+
+		io.emit(Commands.UPDATE_ROOMS, {
+			open_rooms: Object.keys(OPEN_ROOMS)
+		});
+
 		io.in(room_code).emit(Commands.USER_JOIN, {
 			user_id: host_id,
 			room_code,
-			username
+			username,
+			username_array
 		});
 
-		socket.join(room_code);
 	});
 
 	socket.on(Commands.JOIN_ROOM, data => {
@@ -75,13 +91,25 @@ io.on('connection', socket => {
 			}
 		};
 
+		socket.join(room_code);
+
+		let username_array = [];
+		for(let user_id of Object.keys(CONNECTED_USERS)) {
+			let uname = CONNECTED_USERS[user_id].username;
+			let room = CONNECTED_USERS[user_id].room_code;
+
+			if(room === room_code){
+				username_array.push(uname);
+			}
+		}
+
 		io.in(room_code).emit(Commands.USER_JOIN, {
 			user_id,
 			room_code,
-			username
+			username,
+			username_array
 		});
 
-		socket.join(room_code);
 	});
 
 	socket.on(Commands.UPDATE_INFO, data => {
@@ -89,10 +117,21 @@ io.on('connection', socket => {
 		let user_id = data.user_id;
 		let username = CONNECTED_USERS[user_id].username;
 
+		let username_array = [];
+		for(let user_id of Object.keys(CONNECTED_USERS)) {
+			let uname = CONNECTED_USERS[user_id].username;
+			let room = CONNECTED_USERS[user_id].room_code;
+
+			if(room === room_code){
+				username_array.push(uname);
+			}
+		}
+
 		io.to(user_id).emit(Commands.UPDATE_INFO, {
 			room_code,
 			username,
-			user_id
+			user_id,
+			username_array
 		});
 	});
 
@@ -119,14 +158,16 @@ io.on('connection', socket => {
 		});
 	});
 
+	socket.on(Commands.UPDATE_ROOMS, data => {
+		socket.emit(Commands.UPDATE_ROOMS, {
+			open_rooms: Object.keys(OPEN_ROOMS)
+		});
+	});
+
 	socket.on('disconnect', () => {
 		let user_id = socket.id;
 		let room_code = CONNECTED_USERS[user_id].room_code;
-
-		io.in(room_code).emit(Commands.USER_DISCONNECT, {
-			user_id,
-			username: CONNECTED_USERS[user_id].username
-		});
+		let username = CONNECTED_USERS[user_id].username;
 
 		if(CONNECTED_USERS[user_id].room_code !== '' ) {
 			delete OPEN_ROOMS[room_code].users[user_id];
@@ -134,6 +175,23 @@ io.on('connection', socket => {
 		}
 		
 		delete CONNECTED_USERS[user_id];
+
+		let username_array = [];
+		for(let user_id of Object.keys(CONNECTED_USERS)) {
+			let uname = CONNECTED_USERS[user_id].username;
+			let room = CONNECTED_USERS[user_id].room_code;
+
+			if(room === room_code){
+				username_array.push(uname);
+			}
+		}
+
+		io.in(room_code).emit(Commands.USER_DISCONNECT, {
+			user_id,
+			username,
+			username_array
+		});
+		
 		console.log(`User disconnected. ID: ${user_id}`);
 
 	});
